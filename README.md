@@ -1,9 +1,5 @@
 # Rem-ixr (Web Pad Sampler & Audio Remixer)
 
-ヤマハの「Music Remixer」のUIと操作感に着想を得た、Webブラウザで動作するレスポンシブな8×5パッドサンプラー / リミキサーアプリです。
-外部ライブラリへの過度な依存を避け、**Web Audio API** と **IndexedDB** を用いて高レスポンス・低遅延を実現しています。
-
----
 
 ## 主な機能・特徴
 
