@@ -551,6 +551,110 @@
       this.faderAnimationId = null;
       this.isFaderAnimating = false;
       this.isUnlocked = false;
+      this.silentAudio = null;
+      this.silentAudioUrl = null;
+      this.setupKeepAliveListeners();
+    }
+
+    setupKeepAliveListeners() {
+      // Resume AudioContext and ensure keep-alive audio is active when returning from background
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          if (this.ctx && this.ctx.state === 'suspended') {
+            this.ctx.resume().catch(() => {});
+          }
+          if (this.silentAudio && this.silentAudio.paused && this.isUnlocked) {
+            this.silentAudio.play().catch(() => {});
+          }
+        }
+      });
+
+      // When tab is closed or navigated away, cleanly pause and release audio
+      window.addEventListener('beforeunload', () => {
+        if (this.silentAudio) {
+          try {
+            this.silentAudio.pause();
+            this.silentAudio.src = '';
+          } catch (_) {}
+        }
+      });
+      window.addEventListener('pagehide', () => {
+        if (this.silentAudio) {
+          try {
+            this.silentAudio.pause();
+          } catch (_) {}
+        }
+      });
+    }
+
+    initSilentAudio() {
+      if (this.silentAudio) return;
+      try {
+        this.silentAudio = document.createElement('audio');
+        this.silentAudio.setAttribute('loop', 'true');
+        this.silentAudio.setAttribute('playsinline', 'true');
+        this.silentAudio.setAttribute('webkit-playsinline', 'true');
+        this.silentAudio.setAttribute('preload', 'auto');
+        this.silentAudio.style.position = 'fixed';
+        this.silentAudio.style.width = '1px';
+        this.silentAudio.style.height = '1px';
+        this.silentAudio.style.opacity = '0.001';
+        this.silentAudio.style.pointerEvents = 'none';
+        this.silentAudio.style.zIndex = '-9999';
+        this.silentAudio.volume = 0.01;
+
+        this.silentAudioUrl = this.generateSilentWavUrl();
+        this.silentAudio.src = this.silentAudioUrl;
+        document.body.appendChild(this.silentAudio);
+
+        if ('mediaSession' in navigator) {
+          try {
+            navigator.mediaSession.metadata = new MediaMetadata({
+              title: 'Rem-ixr (バックグラウンド再生中)',
+              artist: 'Rem-ixr Pad Remixer',
+              album: 'Rem-ixr'
+            });
+            navigator.mediaSession.playbackState = 'playing';
+          } catch (_) {}
+        }
+      } catch (e) {
+        console.warn('Failed to init silent audio:', e);
+      }
+    }
+
+    generateSilentWavUrl() {
+      // 8kHz, 16-bit Mono, 2-second digital silence WAV (~32KB)
+      const sampleRate = 8000;
+      const duration = 2;
+      const numChannels = 1;
+      const bytesPerSample = 2;
+      const numFrames = sampleRate * duration;
+      const dataSize = numFrames * numChannels * bytesPerSample;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      const writeStr = (offset, str) => {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(offset + i, str.charCodeAt(i));
+        }
+      };
+
+      writeStr(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeStr(8, 'WAVE');
+      writeStr(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * numChannels * bytesPerSample, true);
+      view.setUint16(32, numChannels * bytesPerSample, true);
+      view.setUint16(34, bytesPerSample * 8, true);
+      writeStr(36, 'data');
+      view.setUint32(40, dataSize, true);
+
+      const blob = new Blob([buffer], { type: 'audio/wav' });
+      return URL.createObjectURL(blob);
     }
 
     init() {
@@ -577,6 +681,17 @@
 
     async unlock() {
       if (!this.ctx) this.init();
+      if (!this.silentAudio) this.initSilentAudio();
+
+      if (this.silentAudio && this.silentAudio.paused) {
+        this.silentAudio.play().catch(() => {});
+        if ('mediaSession' in navigator) {
+          try {
+            navigator.mediaSession.playbackState = 'playing';
+          } catch (_) {}
+        }
+      }
+
       if (this.ctx.state === 'suspended') {
         try {
           await this.ctx.resume();
@@ -1713,6 +1828,14 @@
 
   function setupEventListeners() {
     document.addEventListener('gesturestart', (e) => e.preventDefault());
+
+    // One-time global user gesture to unlock AudioContext and start silent keep-alive audio
+    const unlockAudioOnGesture = async () => {
+      await audioEngine.unlock();
+    };
+    window.addEventListener('pointerdown', unlockAudioOnGesture, { once: true });
+    window.addEventListener('touchstart', unlockAudioOnGesture, { once: true, passive: true });
+    window.addEventListener('click', unlockAudioOnGesture, { once: true });
   }
 
   function audioBufferToWav(buffer) {
