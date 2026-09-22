@@ -549,6 +549,7 @@
       this.onFaderChange = null;
       this.onTrackStateChange = null;
       this.faderAnimationId = null;
+      this.isFaderAnimating = false;
       this.isUnlocked = false;
     }
 
@@ -599,8 +600,8 @@
       this.faderPosition = pos;
       this.updateBusGains();
 
-      // Stop playback of Red and Green tracks when center (0.0) is reached
-      if (pos === 0.0) {
+      // Stop playback of Red and Green tracks only when manually moved to center 0.0 (not while animating)
+      if (pos === 0.0 && !this.isFaderAnimating) {
         this.stopExclusiveTracks(0.2);
       }
 
@@ -659,6 +660,8 @@
         this.faderAnimationId = null;
       }
 
+      this.isFaderAnimating = true;
+
       return new Promise((resolve) => {
         const startPos = this.faderPosition;
         const startTime = performance.now();
@@ -679,6 +682,7 @@
           } else {
             this.setFaderPosition(target, true);
             this.faderAnimationId = null;
+            this.isFaderAnimating = false;
             resolve();
           }
         };
@@ -739,23 +743,33 @@
         return;
       }
 
-      // Opposite side was playing: animate fader and fade out old
+      const isAnyExclusivePlaying = Boolean(otherActivePadKey || currentActivePadKey);
+
+      // ★無再生時の挙動：
+      // フェードやスライダーのアニメーション待ちをせず、即座にスライダーを100%位置に設定して全開で再生
+      if (!isAnyExclusivePlaying) {
+        this.setFaderPosition(targetFader, true);
+        this.startTrack(row, col, padKey, buffer, isRed ? this.redBusGain : this.greenBusGain);
+        return;
+      }
+
+      // ★再生中の曲がある場合の挙動：
       if (otherActivePadKey) {
+        // 反対側の列が再生中の場合：旧曲を0.5秒フェードアウトし、スライダーを0.5秒でアニメーション移動
         this.stopTrackWithFade(otherActivePadKey, 0.5);
         this.columnActiveTrack.delete(otherCol);
         await this.animateFader(targetFader, 0.5);
       } else {
+        // 同じ列内で別行が再生中の場合：旧曲を0.5秒フェードアウト
+        if (currentActivePadKey && currentActivePadKey !== padKey) {
+          this.stopTrackWithFade(currentActivePadKey, 0.5);
+        }
         if (Math.abs(this.faderPosition - targetFader) > 0.05) {
-          this.animateFader(targetFader, 0.5);
+          this.setFaderPosition(targetFader, true);
         }
       }
 
-      // Same column another track was playing: fade it out
-      if (currentActivePadKey && currentActivePadKey !== padKey) {
-        this.stopTrackWithFade(currentActivePadKey, 0.5);
-      }
-
-      // Start new track (one-shot, no loop)
+      // 選択した曲はフェードインせず最初から全開（100%）で再生
       this.startTrack(row, col, padKey, buffer, isRed ? this.redBusGain : this.greenBusGain);
     }
 
@@ -1126,6 +1140,43 @@
     loadingOverlay.style.display = 'none';
   }
 
+  // Pad Sample Assignment Modal (100% reliable on iOS Safari)
+  const sampleModal = document.getElementById('sample-modal');
+  const sampleModalTitle = document.getElementById('sample-modal-title');
+  const sampleModalDesc = document.getElementById('sample-modal-desc');
+  const sampleModalCurrent = document.getElementById('sample-modal-current');
+  const sampleModalChooseBtn = document.getElementById('sample-modal-choose-btn');
+  const sampleModalCancelBtn = document.getElementById('sample-modal-cancel-btn');
+
+  function openSampleModal(row, col) {
+    if (!sampleModal) return;
+    const rowLetter = ROW_NAMES[row];
+    const padKey = `${col}_${row}`;
+    const padConfig = currentPresetData?.pads[padKey];
+    const currentName = padConfig?.name || '(未設定)';
+
+    editingPadCoord = { row, col };
+    sampleModalTitle.textContent = `パッド [${rowLetter}${col + 1}] の曲を変更`;
+    sampleModalCurrent.textContent = currentName;
+    sampleModal.hidden = false;
+    sampleModal.style.display = 'flex';
+  }
+
+  function closeSampleModal() {
+    if (!sampleModal) return;
+    sampleModal.hidden = true;
+    sampleModal.style.display = 'none';
+  }
+
+  sampleModalCancelBtn.addEventListener('click', closeSampleModal);
+
+  sampleModalChooseBtn.addEventListener('click', () => {
+    closeSampleModal();
+    // Direct user tap event: 100% allowed on iOS Safari!
+    sampleFileInput.value = '';
+    sampleFileInput.click();
+  });
+
   async function initApp() {
     await openDB();
 
@@ -1334,6 +1385,10 @@
     let startX = 0;
     let startY = 0;
     let isMoved = false;
+    let isLongPressCompleted = false;
+
+    // Prevent iOS native context menu on long press
+    padEl.addEventListener('contextmenu', (e) => e.preventDefault());
 
     const cancelHold = () => {
       if (holdTimer) {
@@ -1341,6 +1396,7 @@
         holdTimer = null;
       }
       padEl.classList.remove('holding');
+      padEl.classList.remove('hold-complete');
     };
 
     padEl.addEventListener('pointerdown', async (e) => {
@@ -1349,31 +1405,46 @@
       startX = e.clientX;
       startY = e.clientY;
       isMoved = false;
+      isLongPressCompleted = false;
 
       if (!isLocked) {
         padEl.classList.add('holding');
         holdTimer = setTimeout(() => {
+          isLongPressCompleted = true;
           padEl.classList.remove('holding');
-          triggerFileAssign(row, col);
+          padEl.classList.add('hold-complete');
+          if (navigator.vibrate) {
+            navigator.vibrate(60);
+          }
+          showToast('指を離すと曲選択が開きます');
         }, 1000);
       }
     });
 
     padEl.addEventListener('pointermove', (e) => {
-      if (!holdTimer) return;
+      if (!holdTimer && !isLongPressCompleted) return;
       const dx = Math.abs(e.clientX - startX);
       const dy = Math.abs(e.clientY - startY);
       if (dx > 12 || dy > 12) {
         isMoved = true;
+        isLongPressCompleted = false;
         cancelHold();
       }
     });
 
     padEl.addEventListener('pointerup', () => {
+      // If long press completed, trigger file picker inside direct user gesture (pointerup)
+      if (isLongPressCompleted) {
+        isLongPressCompleted = false;
+        cancelHold();
+        triggerFileAssign(row, col);
+        return;
+      }
+
       if (holdTimer) {
         clearTimeout(holdTimer);
         holdTimer = null;
-        padEl.classList.remove('holding');
+        cancelHold();
 
         if (!isMoved) {
           handlePadTap(row, col, padKey);
@@ -1381,8 +1452,15 @@
       }
     });
 
-    padEl.addEventListener('pointercancel', cancelHold);
-    padEl.addEventListener('pointerleave', cancelHold);
+    padEl.addEventListener('pointercancel', () => {
+      isLongPressCompleted = false;
+      cancelHold();
+    });
+
+    padEl.addEventListener('pointerleave', () => {
+      isLongPressCompleted = false;
+      cancelHold();
+    });
   }
 
   async function handlePadTap(row, col, padKey) {
@@ -1407,12 +1485,20 @@
   }
 
   function triggerFileAssign(row, col) {
-    if (navigator.vibrate) {
-      navigator.vibrate(50);
-    }
     editingPadCoord = { row, col };
-    sampleFileInput.value = '';
-    sampleFileInput.click();
+
+    // Try direct native file picker click within user gesture (pointerup)
+    try {
+      sampleFileInput.value = '';
+      sampleFileInput.click();
+    } catch (e) {
+      console.warn('Native file input click failed', e);
+    }
+
+    // Also open modal dialog as reliable fallback for iOS Safari
+    setTimeout(() => {
+      openSampleModal(row, col);
+    }, 120);
   }
 
   sampleFileInput.addEventListener('change', async (e) => {

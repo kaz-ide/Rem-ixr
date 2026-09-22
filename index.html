@@ -142,6 +142,27 @@
     </div>
   </div>
 
+  <!-- Pad Sample Assignment Modal (Ensures 100% reliability on iOS Safari) -->
+  <div id="sample-modal" class="modal-backdrop" hidden style="display: none;">
+    <div class="modal-dialog">
+      <h2 id="sample-modal-title" class="modal-title">パッドの曲を変更</h2>
+      <div class="modal-body">
+        <p id="sample-modal-desc" class="modal-subtext" style="margin-bottom: 12px; color: var(--text-secondary); font-size: 13px;">
+          現在の曲: <span id="sample-modal-current" style="color: #fff; font-weight: 600;"></span>
+        </p>
+        <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 16px;">
+          対応形式: WAV, MP3, AAC (.m4a), FLAC
+        </p>
+        <button id="sample-modal-choose-btn" class="ctrl-btn" style="width: 100%; height: 44px; font-size: 14px; background: var(--col-blue-primary); color: #070d14; font-weight: 700; border: none; box-shadow: 0 0 12px var(--col-blue-glow);">
+          📁 音声ファイルを選択する
+        </button>
+      </div>
+      <div class="modal-actions">
+        <button id="sample-modal-cancel-btn" class="modal-btn cancel-btn">閉じる</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Loading / Progress Modal Dialog -->
   <div id="loading-overlay" class="modal-backdrop" hidden style="display: none;">
     <div class="modal-dialog loading-dialog">
