@@ -30,15 +30,14 @@ class AudioEngine {
     this.isUnlocked = false;
     this.faderAnimationId = null;
     this.silentAudio = null;
-    this.silentAudioUrl = null;
     this.setupKeepAliveListeners();
   }
 
   setupKeepAliveListeners() {
-    // Resume AudioContext and ensure keep-alive audio is active when returning from background
+    // Automatic resume when returning from background or interrupted state
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        if (this.ctx && this.ctx.state === 'suspended') {
+        if (this.ctx && this.ctx.state !== 'running') {
           this.ctx.resume().catch(() => {});
         }
         if (this.silentAudio && this.silentAudio.paused && this.isUnlocked) {
@@ -47,12 +46,11 @@ class AudioEngine {
       }
     });
 
-    // When tab is closed or navigated away, cleanly pause and release audio
+    // Explicit pause and cleanup when navigating away or closing tab
     window.addEventListener('beforeunload', () => {
       if (this.silentAudio) {
         try {
           this.silentAudio.pause();
-          this.silentAudio.src = '';
         } catch (_) {}
       }
     });
@@ -65,82 +63,31 @@ class AudioEngine {
     });
   }
 
-  initSilentAudio() {
-    if (this.silentAudio) return;
-    try {
-      this.silentAudio = document.createElement('audio');
-      this.silentAudio.setAttribute('loop', 'true');
-      this.silentAudio.setAttribute('playsinline', 'true');
-      this.silentAudio.setAttribute('webkit-playsinline', 'true');
-      this.silentAudio.setAttribute('preload', 'auto');
-      this.silentAudio.style.position = 'fixed';
-      this.silentAudio.style.width = '1px';
-      this.silentAudio.style.height = '1px';
-      this.silentAudio.style.opacity = '0.001';
-      this.silentAudio.style.pointerEvents = 'none';
-      this.silentAudio.style.zIndex = '-9999';
-      this.silentAudio.volume = 0.01;
-
-      this.silentAudioUrl = this.generateSilentWavUrl();
-      this.silentAudio.src = this.silentAudioUrl;
-      document.body.appendChild(this.silentAudio);
-
-      if ('mediaSession' in navigator) {
-        try {
-          navigator.mediaSession.metadata = new MediaMetadata({
-            title: 'Rem-ixr (バックグラウンド再生中)',
-            artist: 'Rem-ixr Pad Remixer',
-            album: 'Rem-ixr'
-          });
-          navigator.mediaSession.playbackState = 'playing';
-        } catch (_) {}
-      }
-    } catch (e) {
-      console.warn('Failed to init silent audio:', e);
-    }
-  }
-
-  generateSilentWavUrl() {
-    // 8kHz, 16-bit Mono, 2-second digital silence WAV (~32KB)
-    const sampleRate = 8000;
-    const duration = 2;
-    const numChannels = 1;
-    const bytesPerSample = 2;
-    const numFrames = sampleRate * duration;
-    const dataSize = numFrames * numChannels * bytesPerSample;
-    const buffer = new ArrayBuffer(44 + dataSize);
-    const view = new DataView(buffer);
-
-    const writeStr = (offset, str) => {
-      for (let i = 0; i < str.length; i++) {
-        view.setUint8(offset + i, str.charCodeAt(i));
-      }
-    };
-
-    writeStr(0, 'RIFF');
-    view.setUint32(4, 36 + dataSize, true);
-    writeStr(8, 'WAVE');
-    writeStr(12, 'fmt ');
-    view.setUint32(16, 16, true);
-    view.setUint16(20, 1, true); // PCM
-    view.setUint16(22, numChannels, true);
-    view.setUint32(24, sampleRate, true);
-    view.setUint32(28, sampleRate * numChannels * bytesPerSample, true);
-    view.setUint16(32, numChannels * bytesPerSample, true);
-    view.setUint16(34, bytesPerSample * 8, true);
-    writeStr(36, 'data');
-    view.setUint32(40, dataSize, true);
-
-    const blob = new Blob([buffer], { type: 'audio/wav' });
-    return URL.createObjectURL(blob);
-  }
-
   // Initialize Web Audio API and create busses
   init() {
     if (this.ctx) return;
 
+    // Set iOS 16.4+ Audio Session to 'playback'
+    // This tells iOS that this page plays intentional media, preventing muting on screen lock,
+    // backgrounding, or when the hardware silent switch is ON.
+    if ('audioSession' in navigator) {
+      try {
+        navigator.audioSession.type = 'playback';
+      } catch (e) {
+        console.warn('AudioSession setup failed:', e);
+      }
+    }
+
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    this.ctx = new AudioCtx();
+    this.ctx = new AudioCtx({ latencyHint: 'interactive' });
+
+    this.ctx.onstatechange = () => {
+      if (this.ctx.state === 'interrupted' || this.ctx.state === 'suspended') {
+        if (this.isUnlocked) {
+          this.ctx.resume().catch(() => {});
+        }
+      }
+    };
 
     // Master Bus
     this.masterGain = this.ctx.createGain();
@@ -164,31 +111,51 @@ class AudioEngine {
   }
 
   // Unlock audio for iOS / Safari
-  async unlock() {
+  unlock() {
     if (!this.ctx) {
       this.init();
     }
+
+    // Ensure audioSession is playback mode on iOS
+    if ('audioSession' in navigator) {
+      try {
+        navigator.audioSession.type = 'playback';
+      } catch (_) {}
+    }
+
+    // Synchronously resume AudioContext within direct user gesture
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume().catch(() => {});
+    }
+
+    // Synchronously play persistent silent MP3 element within direct user gesture
     if (!this.silentAudio) {
-      this.initSilentAudio();
+      this.silentAudio = document.getElementById('bg-audio-keeper');
     }
     if (this.silentAudio && this.silentAudio.paused) {
-      this.silentAudio.play().catch(() => {});
-      if ('mediaSession' in navigator) {
-        try {
-          navigator.mediaSession.playbackState = 'playing';
-        } catch (_) {}
-      }
+      this.silentAudio.play().catch((err) => {
+        console.warn('bgAudio play failed:', err);
+      });
     }
-    if (this.ctx.state === 'suspended') {
+
+    // Register MediaSession metadata and handlers for iOS lock screen
+    if ('mediaSession' in navigator) {
       try {
-        await this.ctx.resume();
-        this.isUnlocked = true;
-      } catch (err) {
-        console.warn('AudioContext resume failed:', err);
-      }
-    } else {
-      this.isUnlocked = true;
+        navigator.mediaSession.metadata = new MediaMetadata({
+          title: 'Rem-ixr',
+          artist: 'Web Pad Remixer',
+          album: 'Rem-ixr'
+        });
+        navigator.mediaSession.playbackState = 'playing';
+        navigator.mediaSession.setActionHandler('play', () => {
+          if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+          if (this.silentAudio && this.silentAudio.paused) this.silentAudio.play().catch(() => {});
+        });
+        navigator.mediaSession.setActionHandler('pause', () => {});
+      } catch (_) {}
     }
+
+    this.isUnlocked = true;
   }
 
   // Set Crossfader position (-1.0 to +1.0)
