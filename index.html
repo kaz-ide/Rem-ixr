@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Rem-ixr - Web Pad Sampler</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app" class="app-container">
+    <!-- Top Control Header (2 Rows) -->
+    <header class="control-header">
+      <!-- Row 1: Brand & Preset (wide area for 20+ chars) & Rename Button -->
+      <div class="header-row header-row-top">
+        <div class="brand-badge">
+          <span class="brand-glow">Rem-ixr</span>
+        </div>
+
+        <div class="header-group preset-group">
+          <label for="preset-select" class="sr-only">プリセット選択</label>
+          <div class="custom-select-wrapper">
+            <select id="preset-select" class="preset-select">
+              <!-- 1 to 10 options dynamically populated -->
+            </select>
+          </div>
+          <button id="rename-preset-btn" class="ctrl-btn icon-btn" title="プリセット名を変更" aria-label="プリセット名を変更">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+            </svg>
+            <span class="btn-text">名前変更</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Row 2: Lock Button & Backup Controls -->
+      <div class="header-row header-row-bottom">
+        <div class="header-group lock-group">
+          <button id="lock-btn" class="ctrl-btn lock-btn unlocked" title="長押しによる編集の誤操作防止ロック" aria-label="誤操作防止ロック">
+            <svg class="icon lock-open-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+            </svg>
+            <svg class="icon lock-closed-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+            <span class="lock-label" id="lock-status-text">編集可能</span>
+          </button>
+        </div>
+
+        <div class="header-group backup-group">
+          <button id="export-backup-btn" class="ctrl-btn" title="全設定と音声データを書き出し" aria-label="書き出し">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span class="btn-text">書き出し</span>
+          </button>
+          <button id="import-backup-btn" class="ctrl-btn" title="バックアップファイルから復元" aria-label="復元">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="17 8 12 3 7 8"></polyline>
+              <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <span class="btn-text">復元</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Center Pad Grid: 8 rows (A-H) x 5 cols (40 pads) -->
+    <main class="grid-wrapper">
+      <div id="pad-grid" class="pad-grid" role="region" aria-label="40 Pad Sampler Grid">
+        <!-- 40 Pads injected dynamically via JavaScript -->
+      </div>
+    </main>
+
+    <!-- Bottom Crossfader Section -->
+    <footer class="fader-footer">
+      <div class="fader-container">
+        <!-- Labels & Level indicators -->
+        <div class="fader-header-row">
+          <div class="fader-end-label red-side">
+            <span class="dot red-dot"></span>
+            <span class="title">RED LOOP (COL 1)</span>
+            <span id="red-vol-disp" class="vol-badge">0%</span>
+          </div>
+          <div class="fader-center-indicator" id="fader-center-badge">
+            <span class="center-text">CENTER MUTE</span>
+          </div>
+          <div class="fader-end-label green-side">
+            <span id="green-vol-disp" class="vol-badge">0%</span>
+            <span class="title">GREEN LOOP (COL 5)</span>
+            <span class="dot green-dot"></span>
+          </div>
+        </div>
+
+        <!-- Custom Track & Thumb -->
+        <div class="fader-track-wrapper" id="fader-track-area">
+          <div class="fader-track-bg">
+            <div class="fader-track-left"></div>
+            <div class="fader-center-notch"></div>
+            <div class="fader-track-right"></div>
+          </div>
+          <input
+            type="range"
+            id="crossfader-slider"
+            class="crossfader-input"
+            min="-1.0"
+            max="1.0"
+            step="0.005"
+            value="0.0"
+            aria-label="赤・緑クロスフェーダー"
+          />
+        </div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Hidden File Input for Sample Assignment (WAV, MP3, AAC, FLAC) -->
+  <input type="file" id="sample-file-input" accept=".wav,.mp3,.m4a,.aac,.flac,audio/wav,audio/mpeg,audio/aac,audio/flac,audio/mp4" style="display: none;">
+
+  <!-- Hidden File Input for Backup Import (.zip and legacy .json) -->
+  <input type="file" id="backup-file-input" accept=".zip,application/zip,.json,application/json" style="display: none;">
+
+  <!-- Preset Rename Modal Dialog -->
+  <div id="rename-modal" class="modal-backdrop" hidden style="display: none;">
+    <div class="modal-dialog">
+      <h2 class="modal-title">プリセット名の変更</h2>
+      <div class="modal-body">
+        <label for="rename-input" class="modal-label">プリセット名</label>
+        <input type="text" id="rename-input" class="modal-input" maxlength="30" placeholder="プリセット名を入力">
+      </div>
+      <div class="modal-actions">
+        <button id="modal-cancel-btn" class="modal-btn cancel-btn">キャンセル</button>
+        <button id="modal-save-btn" class="modal-btn save-btn">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading / Progress Modal Dialog -->
+  <div id="loading-overlay" class="modal-backdrop" hidden style="display: none;">
+    <div class="modal-dialog loading-dialog">
+      <div class="loading-spinner"></div>
+      <h3 id="loading-title" class="loading-title">処理中...</h3>
+      <p id="loading-message" class="loading-message">しばらくお待ちください</p>
+      <div class="loading-progress-bar-bg">
+        <div id="loading-progress-bar" class="loading-progress-bar"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <!-- JSZip Library -->
+  <script src="js/jszip.min.js"></script>
+  <!-- Application Script -->
+  <script src="js/app.js"></script>
+</body>
+</html>
