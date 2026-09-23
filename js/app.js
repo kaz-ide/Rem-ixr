@@ -1861,6 +1861,25 @@
     window.addEventListener('touchstart', unlockAudioOnGesture, { passive: true });
     window.addEventListener('touchend', unlockAudioOnGesture, { passive: true });
     window.addEventListener('click', unlockAudioOnGesture);
+
+    // Responsive orientation & compact landscape mode handler
+    function updateCompactLandscapeMode() {
+      const isLandscape = window.innerWidth > window.innerHeight;
+      const isShort = window.innerHeight <= 560;
+      if (isLandscape && isShort) {
+        document.documentElement.classList.add('compact-landscape');
+        document.body.classList.add('compact-landscape');
+      } else {
+        document.documentElement.classList.remove('compact-landscape');
+        document.body.classList.remove('compact-landscape');
+      }
+    }
+    window.addEventListener('resize', updateCompactLandscapeMode);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(updateCompactLandscapeMode, 80);
+      setTimeout(updateCompactLandscapeMode, 300);
+    });
+    updateCompactLandscapeMode();
   }
 
   function audioBufferToWav(buffer) {

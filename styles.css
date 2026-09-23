@@ -851,65 +851,96 @@ html, body {
 
 /* ==========================================================================
    Rescue Mode: Ultra-Compact Landscape for Phones (iPhone & Mobile Landscape)
-   When screen height is limited (<= 520px) in landscape:
-   Simplifies pads to border + track title only, hiding artist, meta, and wave bars.
-   Shrinks headers and fader so pads get maximum vertical room.
+   Active when:
+   1. Device is in landscape and height <= 600px
+   2. Device height is <= 520px
    ========================================================================== */
-@media (orientation: landscape) and (max-height: 520px) {
+@media (orientation: landscape) and (max-height: 600px),
+       screen and (max-height: 520px) {
+
+  /* 1. Overall App Container */
   .app-container {
-    padding: 4px 10px;
-    gap: 4px;
+    padding: 2px 8px !important;
+    gap: 3px !important;
   }
 
+  /* 2. Title row & 2nd row: Scale down button & header sizes by 70% */
   .control-header {
-    padding: 3px 8px;
-    gap: 4px;
+    padding: 2px 6px !important;
+    gap: 2px !important;
+  }
+
+  .header-row {
+    gap: 4px !important;
   }
 
   .header-row-top {
-    padding-bottom: 3px;
-    gap: 6px;
+    padding-bottom: 2px !important;
+  }
+
+  .header-row-bottom {
+    padding-top: 0 !important;
   }
 
   .brand-badge {
-    font-size: 13px;
+    font-size: 11px !important;
+    letter-spacing: 1px !important;
   }
 
   .version-tag {
-    font-size: 8.5px;
-    padding: 1px 4px;
-    margin-left: 4px;
+    font-size: 7.5px !important;
+    padding: 1px 3px !important;
+    margin-left: 2px !important;
   }
 
   .preset-group {
-    max-width: 380px;
+    max-width: 320px !important;
+    gap: 4px !important;
   }
 
   .preset-select {
-    height: 26px;
-    font-size: 12px;
-    padding: 0 6px;
+    height: 22px !important;
+    font-size: 10.5px !important;
+    padding: 0 4px !important;
   }
 
+  /* Buttons: 70% scaled */
   .ctrl-btn {
-    height: 26px;
-    font-size: 11px;
-    padding: 0 6px;
-    gap: 3px;
+    height: 22px !important;
+    font-size: 9.5px !important;
+    padding: 0 6px !important;
+    gap: 2px !important;
+    border-radius: 3px !important;
   }
 
   .ctrl-btn .icon {
-    width: 13px;
-    height: 13px;
+    width: 11px !important;
+    height: 11px !important;
   }
 
-  /* Pad Compact Rescue Mode: Border & Track Name Only */
+  .ctrl-btn .btn-text {
+    display: inline-block !important;
+    font-size: 9.5px !important;
+  }
+
+  .lock-btn {
+    min-width: auto !important;
+    height: 22px !important;
+    padding: 0 6px !important;
+    font-size: 9.5px !important;
+  }
+
+  .lock-label {
+    font-size: 9.5px !important;
+  }
+
+  /* 3. Pads: Hide A1, A2... (.pad-meta), artist (.pad-artist), and wave bars */
   .pad-grid {
-    gap: 3px;
+    gap: 2.5px !important;
   }
 
   .pad-cell {
-    padding: 2px 4px !important;
+    padding: 1px 3px !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: center !important;
@@ -917,7 +948,7 @@ html, body {
     border-width: 1.5px !important;
   }
 
-  /* Hide metadata, artist name, and decorative wave bars */
+  /* Hide A1, A2... (.pad-meta), artist (.pad-artist), and wave decor (.pad-wave-decor) */
   .pad-meta,
   .pad-artist,
   .pad-wave-decor {
@@ -925,135 +956,311 @@ html, body {
   }
 
   .pad-titles {
-    width: 100%;
-    margin: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
+  /* Single, clear, centered, bold track name */
   .pad-name {
-    font-size: 11.5px !important;
-    font-weight: 700;
-    line-height: 1.15;
-    text-align: center;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    width: 100%;
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    width: 100% !important;
+    color: #ffffff !important;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
   }
 
-  /* Compact Fader Footer */
+  /* 4. Crossfader Footer: Half Height (~44px, normally 94px) */
   .fader-footer {
-    height: 52px !important;
-    padding: 3px 8px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    padding: 2px 10px !important;
     gap: 2px !important;
   }
 
   .fader-labels {
-    height: 14px;
+    height: 12px !important;
   }
 
   .fader-end-label {
-    gap: 4px;
+    gap: 3px !important;
   }
 
   .fader-end-label .title {
-    font-size: 8px;
+    font-size: 7.5px !important;
+    letter-spacing: 0.2px !important;
   }
 
   .fader-end-label .val {
-    font-size: 9px;
+    font-size: 8.5px !important;
+  }
+
+  .fader-end-label .indicator-dot {
+    width: 4px !important;
+    height: 4px !important;
   }
 
   .fader-center-indicator {
-    padding: 1px 6px;
-    font-size: 7.5px;
+    padding: 1px 5px !important;
+    font-size: 7.5px !important;
+    height: 12px !important;
+    line-height: 10px !important;
   }
 
   .fader-track-wrapper {
-    height: 28px;
+    height: 24px !important;
   }
 
   .fader-track-bg {
-    height: 16px;
+    height: 12px !important;
+    border-radius: 6px !important;
+    border-width: 1px !important;
+  }
+
+  .fader-center-notch {
+    width: 3px !important;
   }
 
   .crossfader-input {
-    height: 28px;
+    height: 24px !important;
   }
 
   .crossfader-input::-webkit-slider-thumb {
-    width: 28px;
-    height: 28px;
+    width: 26px !important;
+    height: 22px !important;
+    border-radius: 4px !important;
   }
 
   .crossfader-input::-moz-range-thumb {
-    width: 28px;
-    height: 28px;
+    width: 26px !important;
+    height: 22px !important;
+    border-radius: 4px !important;
   }
 }
 
-/* Even more compact for very small phone landscape screens (<= 380px height) */
-@media (orientation: landscape) and (max-height: 380px) {
+/* Extra ultra-compact for very narrow landscape heights (<= 360px) */
+@media (orientation: landscape) and (max-height: 360px),
+       (max-height: 360px) {
   .app-container {
-    padding: 2px 6px;
-    gap: 2px;
+    padding: 1px 4px !important;
+    gap: 2px !important;
   }
-
-  .control-header {
-    padding: 2px 4px;
-  }
-
-  .preset-select {
-    height: 24px;
-    font-size: 11px;
-  }
-
-  .ctrl-btn {
-    height: 24px;
-    font-size: 10px;
-    padding: 0 4px;
-  }
-
-  .pad-grid {
-    gap: 2px;
-  }
-
-  .pad-cell {
-    padding: 1px 2px !important;
-  }
-
   .pad-name {
     font-size: 10.5px !important;
   }
-
   .fader-footer {
-    height: 44px !important;
-    padding: 2px 4px !important;
+    height: 38px !important;
+    min-height: 38px !important;
+    max-height: 38px !important;
   }
-
   .fader-track-wrapper {
-    height: 24px;
+    height: 20px !important;
   }
-
-  .fader-track-bg {
-    height: 14px;
-  }
-
   .crossfader-input {
-    height: 24px;
+    height: 20px !important;
   }
-
   .crossfader-input::-webkit-slider-thumb {
-    width: 24px;
-    height: 24px;
+    width: 22px !important;
+    height: 18px !important;
   }
-
   .crossfader-input::-moz-range-thumb {
-    width: 24px;
-    height: 24px;
+    width: 22px !important;
+    height: 18px !important;
   }
+}
+
+/* Fallback class toggled by JavaScript when orientation is landscape & height <= 560px */
+.compact-landscape .app-container {
+  padding: 2px 8px !important;
+  gap: 3px !important;
+}
+
+.compact-landscape .control-header {
+  padding: 2px 6px !important;
+  gap: 2px !important;
+}
+
+.compact-landscape .header-row {
+  gap: 4px !important;
+}
+
+.compact-landscape .header-row-top {
+  padding-bottom: 2px !important;
+}
+
+.compact-landscape .header-row-bottom {
+  padding-top: 0 !important;
+}
+
+.compact-landscape .brand-badge {
+  font-size: 11px !important;
+  letter-spacing: 1px !important;
+}
+
+.compact-landscape .version-tag {
+  font-size: 7.5px !important;
+  padding: 1px 3px !important;
+  margin-left: 2px !important;
+}
+
+.compact-landscape .preset-group {
+  max-width: 320px !important;
+  gap: 4px !important;
+}
+
+.compact-landscape .preset-select {
+  height: 22px !important;
+  font-size: 10.5px !important;
+  padding: 0 4px !important;
+}
+
+/* Header Buttons: 70% scaled */
+.compact-landscape .ctrl-btn {
+  height: 22px !important;
+  font-size: 9.5px !important;
+  padding: 0 6px !important;
+  gap: 2px !important;
+  border-radius: 3px !important;
+}
+
+.compact-landscape .ctrl-btn .icon {
+  width: 11px !important;
+  height: 11px !important;
+}
+
+.compact-landscape .ctrl-btn .btn-text {
+  display: inline-block !important;
+  font-size: 9.5px !important;
+}
+
+.compact-landscape .lock-btn {
+  min-width: auto !important;
+  height: 22px !important;
+  padding: 0 6px !important;
+  font-size: 9.5px !important;
+}
+
+.compact-landscape .lock-label {
+  font-size: 9.5px !important;
+}
+
+/* Pads: Hide A1, A2... (.pad-meta), artist (.pad-artist), and wave decor */
+.compact-landscape .pad-grid {
+  gap: 2.5px !important;
+}
+
+.compact-landscape .pad-cell {
+  padding: 1px 3px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  border-width: 1.5px !important;
+}
+
+.compact-landscape .pad-meta,
+.compact-landscape .pad-artist,
+.compact-landscape .pad-wave-decor {
+  display: none !important;
+}
+
+.compact-landscape .pad-titles {
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.compact-landscape .pad-name {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  width: 100% !important;
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+}
+
+/* Crossfader Footer: Half Height (~44px, normally 94px) */
+.compact-landscape .fader-footer {
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  padding: 2px 10px !important;
+  gap: 2px !important;
+}
+
+.compact-landscape .fader-labels {
+  height: 12px !important;
+}
+
+.compact-landscape .fader-end-label {
+  gap: 3px !important;
+}
+
+.compact-landscape .fader-end-label .title {
+  font-size: 7.5px !important;
+  letter-spacing: 0.2px !important;
+}
+
+.compact-landscape .fader-end-label .val {
+  font-size: 8.5px !important;
+}
+
+.compact-landscape .fader-end-label .indicator-dot {
+  width: 4px !important;
+  height: 4px !important;
+}
+
+.compact-landscape .fader-center-indicator {
+  padding: 1px 5px !important;
+  font-size: 7.5px !important;
+  height: 12px !important;
+  line-height: 10px !important;
+}
+
+.compact-landscape .fader-track-wrapper {
+  height: 24px !important;
+}
+
+.compact-landscape .fader-track-bg {
+  height: 12px !important;
+  border-radius: 6px !important;
+  border-width: 1px !important;
+}
+
+.compact-landscape .fader-center-notch {
+  width: 3px !important;
+}
+
+.compact-landscape .crossfader-input {
+  height: 24px !important;
+}
+
+.compact-landscape .crossfader-input::-webkit-slider-thumb {
+  width: 26px !important;
+  height: 22px !important;
+  border-radius: 4px !important;
+}
+
+.compact-landscape .crossfader-input::-moz-range-thumb {
+  width: 26px !important;
+  height: 22px !important;
+  border-radius: 4px !important;
 }
 
 /* Portrait Orientation (Mobile phones in upright mode) */
