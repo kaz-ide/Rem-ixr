@@ -541,7 +541,7 @@
       this.greenBusGain = null;
       this.blueBusGain = null;
 
-      this.faderPosition = 0.0;
+      this.faderPosition = 0.5; // Normalized: 0.0 (Red) ~ 0.5 (Center Blend 100/100) ~ 1.0 (Green)
       this.activeTracks = new Map(); // 'col_row' -> { source, gainNode, row, col }
       this.columnActiveTrack = new Map(); // col -> 'col_row'
       this.bufferCache = new Map(); // sampleId -> AudioBuffer
@@ -673,20 +673,15 @@
     }
 
     setFaderPosition(value, notify = true) {
-      let pos = Math.max(-1.0, Math.min(1.0, value));
+      let pos = Math.max(0.0, Math.min(1.0, value));
 
-      // Center snap within +/- 2%
-      if (Math.abs(pos) <= 0.02) {
-        pos = 0.0;
+      // Center snap within +/- 2% (0.48 ~ 0.52 snaps to 0.5)
+      if (Math.abs(pos - 0.5) <= 0.02) {
+        pos = 0.5;
       }
 
       this.faderPosition = pos;
       this.updateBusGains();
-
-      // Stop playback of Red and Green tracks only when manually moved to center 0.0 (not while animating)
-      if (pos === 0.0 && !this.isFaderAnimating) {
-        this.stopExclusiveTracks(0.2);
-      }
 
       if (notify && this.onFaderChange) {
         this.onFaderChange(this.faderPosition);
@@ -714,18 +709,21 @@
       if (!this.ctx || !this.redBusGain || !this.greenBusGain) return;
 
       const now = this.ctx.currentTime;
-      let redVol = 0.0;
-      let greenVol = 0.0;
+      let redVol = 1.0;
+      let greenVol = 1.0;
 
-      if (this.faderPosition < 0.0) {
-        redVol = Math.abs(this.faderPosition);
-        greenVol = 0.0;
-      } else if (this.faderPosition > 0.0) {
-        greenVol = this.faderPosition;
-        redVol = 0.0;
+      // DJ Crossfader curve:
+      // Left end (0.0): Red 100%, Green 0%
+      // Range 0.0 ~ 0.5: Red 100%, Green smoothly increases 0% -> 100%
+      // Center (0.5): Red 100%, Green 100% (Both MAX blend)
+      // Range 0.5 ~ 1.0: Red smoothly decreases 100% -> 0%, Green 100%
+      // Right end (1.0): Red 0%, Green 100%
+      if (this.faderPosition <= 0.5) {
+        redVol = 1.0;
+        greenVol = Math.max(0.0, Math.min(1.0, this.faderPosition / 0.5));
       } else {
-        redVol = 0.0;
-        greenVol = 0.0;
+        redVol = Math.max(0.0, Math.min(1.0, (1.0 - this.faderPosition) / 0.5));
+        greenVol = 1.0;
       }
 
       this.redBusGain.gain.cancelScheduledValues(now);
@@ -798,7 +796,7 @@
       return this.bufferCache.has(sampleId);
     }
 
-    async triggerPad(row, col, sampleId) {
+    async triggerPad(row, col, sampleId, isLoop = false) {
       await this.unlock();
       const buffer = this.bufferCache.get(sampleId);
       if (!buffer) return;
@@ -806,64 +804,41 @@
       const padKey = `${col}_${row}`;
 
       if (col === 0 || col === 4) {
-        await this.handleExclusivePlay(row, col, padKey, buffer);
+        await this.handleColumnPlay(row, col, padKey, buffer, isLoop);
       } else {
-        this.handleOneShotPlay(row, col, padKey, buffer);
+        this.handleOneShotPlay(row, col, padKey, buffer, isLoop);
       }
     }
 
-    async handleExclusivePlay(row, col, padKey, buffer) {
+    async handleColumnPlay(row, col, padKey, buffer, isLoop = false) {
       const isRed = col === 0;
-      const targetFader = isRed ? -1.0 : 1.0;
-      const otherCol = isRed ? 4 : 0;
-      const otherActivePadKey = this.columnActiveTrack.get(otherCol);
       const currentActivePadKey = this.columnActiveTrack.get(col);
 
-      // Tapping same pad stops it
+      // Tapping same playing pad stops it
       if (currentActivePadKey === padKey) {
         this.stopTrackWithFade(padKey, 0.5);
         this.columnActiveTrack.delete(col);
         return;
       }
 
-      const isAnyExclusivePlaying = Boolean(otherActivePadKey || currentActivePadKey);
-
-      // ★無再生時の挙動：
-      // フェードやスライダーのアニメーション待ちをせず、即座にスライダーを100%位置に設定して全開で再生
-      if (!isAnyExclusivePlaying) {
-        this.setFaderPosition(targetFader, true);
-        this.startTrack(row, col, padKey, buffer, isRed ? this.redBusGain : this.greenBusGain);
-        return;
+      // If a different row in the SAME column is currently playing, crossfade out over 0.5s
+      if (currentActivePadKey && currentActivePadKey !== padKey) {
+        this.stopTrackWithFade(currentActivePadKey, 0.5);
+        this.columnActiveTrack.delete(col);
       }
 
-      // ★再生中の曲がある場合の挙動：
-      if (otherActivePadKey) {
-        // 反対側の列が再生中の場合：旧曲を0.5秒フェードアウトし、スライダーを0.5秒でアニメーション移動
-        this.stopTrackWithFade(otherActivePadKey, 0.5);
-        this.columnActiveTrack.delete(otherCol);
-        await this.animateFader(targetFader, 0.5);
-      } else {
-        // 同じ列内で別行が再生中の場合：旧曲を0.5秒フェードアウト
-        if (currentActivePadKey && currentActivePadKey !== padKey) {
-          this.stopTrackWithFade(currentActivePadKey, 0.5);
-        }
-        if (Math.abs(this.faderPosition - targetFader) > 0.05) {
-          this.setFaderPosition(targetFader, true);
-        }
-      }
-
-      // 選択した曲はフェードインせず最初から全開（100%）で再生
-      this.startTrack(row, col, padKey, buffer, isRed ? this.redBusGain : this.greenBusGain);
+      // Red (col 0) and Green (col 4) are independent DJ decks and can play simultaneously!
+      // No automatic slider movement: user manually blends via the crossfader slider.
+      this.startTrack(row, col, padKey, buffer, isRed ? this.redBusGain : this.greenBusGain, isLoop);
     }
 
-    startTrack(row, col, padKey, buffer, busGainNode) {
+    startTrack(row, col, padKey, buffer, busGainNode, isLoop = false) {
       const now = this.ctx.currentTime;
       const source = this.ctx.createBufferSource();
       source.buffer = buffer;
-      source.loop = false; // Loop disabled as requested
+      source.loop = Boolean(isLoop);
 
       const trackGain = this.ctx.createGain();
-      // フェードインなし、最初から全開（1.0）で出力
       trackGain.gain.setValueAtTime(1.0, now);
 
       source.connect(trackGain);
@@ -915,11 +890,17 @@
       }, fadeDuration * 1000 + 50);
     }
 
-    handleOneShotPlay(row, col, padKey, buffer) {
+    handleOneShotPlay(row, col, padKey, buffer, isLoop = false) {
+      // Tapping already-playing one-shot/blue track stops it
+      if (this.activeTracks.has(padKey)) {
+        this.stopTrackWithFade(padKey, 0.15);
+        return;
+      }
+
       const now = this.ctx.currentTime;
       const source = this.ctx.createBufferSource();
       source.buffer = buffer;
-      source.loop = false;
+      source.loop = Boolean(isLoop);
 
       const trackGain = this.ctx.createGain();
       trackGain.gain.setValueAtTime(1.0, now);
@@ -928,6 +909,9 @@
       trackGain.connect(this.blueBusGain);
 
       source.start(now);
+
+      const trackInfo = { source, gainNode: trackGain, row, col, padKey };
+      this.activeTracks.set(padKey, trackInfo);
 
       if (this.onTrackStateChange) {
         this.onTrackStateChange(padKey, true);
@@ -938,10 +922,18 @@
           source.disconnect();
           trackGain.disconnect();
         } catch (e) {}
+        this.activeTracks.delete(padKey);
         if (this.onTrackStateChange) {
           this.onTrackStateChange(padKey, false);
         }
       };
+    }
+
+    setTrackLoop(padKey, isLoop) {
+      const track = this.activeTracks.get(padKey);
+      if (track && track.source) {
+        track.source.loop = Boolean(isLoop);
+      }
     }
 
     stopAll() {
@@ -1271,7 +1263,13 @@
 
     currentPresetId = await getSetting('activePresetId', 1);
     isLocked = await getSetting('isLocked', false);
-    const savedFader = await getSetting('faderPosition', 0.0);
+    let savedFader = await getSetting('faderPosition', 0.5);
+    const faderVersion = await getSetting('faderVersion', 1);
+    if (faderVersion < 2 || typeof savedFader !== 'number' || savedFader < 0.0 || savedFader > 1.0) {
+      savedFader = 0.5;
+      await setSetting('faderPosition', 0.5);
+      await setSetting('faderVersion', 2);
+    }
 
     updateLockUI();
 
@@ -1292,6 +1290,7 @@
 
     crossfaderSlider.value = savedFader;
     audioEngine.setFaderPosition(savedFader, true);
+    updateFaderUI(savedFader);
 
     await ensurePresetsExist();
     await refreshPresetDropdown();
@@ -1320,6 +1319,8 @@
                 defaultPreset.pads[key] = {
                   sampleId: `builtin_p1_${key}`,
                   name: getDefaultTrackName(r, c),
+                  artist: '',
+                  loop: false,
                 };
               }
             }
@@ -1429,6 +1430,7 @@
         const padConfig = currentPresetData?.pads[key];
         const trackName = padConfig ? padConfig.name : `${rowLetter}${c + 1}`;
         const artistName = padConfig?.artist || '';
+        const isLoop = Boolean(padConfig?.loop);
 
         const pad = document.createElement('div');
         pad.className = 'pad-cell';
@@ -1449,6 +1451,10 @@
             <span class="pad-coord">${rowLetter}${c + 1}</span>
             <span class="pad-mode-tag">${modeTag}</span>
           </div>
+          <button type="button" class="pad-rpt-btn ${isLoop ? 'active' : ''}" data-pad-key="${key}" title="リピート (ON/OFF)" aria-label="リピート切替">
+            <span class="rpt-label">rpt</span>
+            <span class="rpt-check">${isLoop ? '☑' : '☐'}</span>
+          </button>
           <div class="pad-titles">
             <div class="pad-name" title="${trackName}">${escapeHtml(trackName)}</div>
             ${artistName ? `<div class="pad-artist" title="${artistName}">${escapeHtml(artistName)}</div>` : ''}
@@ -1478,6 +1484,51 @@
 
     // Prevent iOS native context menu on long press
     padEl.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    // Repeat (rpt) toggle event handling with strict isolation (stopPropagation)
+    const rptBtn = padEl.querySelector('.pad-rpt-btn');
+    if (rptBtn) {
+      const stopProp = (e) => e.stopPropagation();
+      rptBtn.addEventListener('pointerdown', stopProp);
+      rptBtn.addEventListener('pointerup', stopProp);
+      rptBtn.addEventListener('touchstart', stopProp, { passive: false });
+      rptBtn.addEventListener('touchend', stopProp, { passive: false });
+      rptBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!currentPresetData.pads) currentPresetData.pads = {};
+        if (!currentPresetData.pads[padKey]) {
+          currentPresetData.pads[padKey] = {
+            sampleId: `builtin_p${currentPresetId}_${padKey}`,
+            name: getDefaultTrackName(row, col),
+            artist: '',
+            loop: false,
+          };
+        }
+        const cfg = currentPresetData.pads[padKey];
+        cfg.loop = !Boolean(cfg.loop);
+        const newLoop = cfg.loop;
+
+        // Visual update
+        if (newLoop) {
+          rptBtn.classList.add('active');
+          const checkEl = rptBtn.querySelector('.rpt-check');
+          if (checkEl) checkEl.textContent = '☑';
+        } else {
+          rptBtn.classList.remove('active');
+          const checkEl = rptBtn.querySelector('.rpt-check');
+          if (checkEl) checkEl.textContent = '☐';
+        }
+
+        // Realtime update to playing AudioBufferSourceNode
+        audioEngine.setTrackLoop(padKey, newLoop);
+
+        // Persist to IndexedDB
+        await savePreset(currentPresetData);
+
+        const rowLetter = ROW_NAMES[row];
+        showToast(newLoop ? `[${rowLetter}${col + 1}] リピート: ON (ループ再生)` : `[${rowLetter}${col + 1}] リピート: OFF (ワンショット)`);
+      });
+    }
 
     const cancelHold = () => {
       if (holdTimer) {
@@ -1571,7 +1622,8 @@
       }
     }
 
-    audioEngine.triggerPad(row, col, padConfig.sampleId);
+    const isLoop = Boolean(padConfig?.loop);
+    audioEngine.triggerPad(row, col, padConfig.sampleId, isLoop);
   }
 
   function triggerFileAssign(row, col) {
@@ -1614,11 +1666,12 @@
       await saveSample(sampleId, file.name, file.type || 'audio/wav', arrayBuffer);
       audioEngine.setCachedBuffer(sampleId, audioBuffer);
 
-      if (!currentPresetData.pads) currentPresetData.pads = {};
+      const existingLoop = Boolean(currentPresetData.pads[padKey]?.loop);
       currentPresetData.pads[padKey] = {
         sampleId,
         name: trackTitle,
         artist: artistName,
+        loop: existingLoop,
       };
       await savePreset(currentPresetData);
 
@@ -1650,21 +1703,27 @@
   function updateFaderUI(pos) {
     crossfaderSlider.value = pos.toFixed(3);
 
-    if (pos === 0.0) {
+    if (Math.abs(pos - 0.5) <= 0.005) {
       faderCenterBadge.classList.add('snapped');
     } else {
       faderCenterBadge.classList.remove('snapped');
     }
 
-    let redPercent = 0;
-    let greenPercent = 0;
+    let redPercent = 100;
+    let greenPercent = 100;
 
-    if (pos < 0) {
-      redPercent = Math.round(Math.abs(pos) * 100);
-      greenPercent = 0;
-    } else if (pos > 0) {
-      greenPercent = Math.round(pos * 100);
-      redPercent = 0;
+    // DJ crossfader volume calculation:
+    // Left end (0.0): Red 100%, Green 0%
+    // Range 0.0 ~ 0.5: Red 100%, Green 0% -> 100%
+    // Center (0.5): Red 100%, Green 100% (Both MAX blend)
+    // Range 0.5 ~ 1.0: Red 100% -> 0%, Green 100%
+    // Right end (1.0): Red 0%, Green 100%
+    if (pos <= 0.5) {
+      redPercent = 100;
+      greenPercent = Math.round(Math.max(0, Math.min(1, pos / 0.5)) * 100);
+    } else {
+      redPercent = Math.round(Math.max(0, Math.min(1, (1.0 - pos) / 0.5)) * 100);
+      greenPercent = 100;
     }
 
     redVolDisp.textContent = `${redPercent}%`;
@@ -1756,6 +1815,7 @@
             sampleId: `builtin_p${currentPresetId}_${key}`,
             name: getDefaultTrackName(r, c),
             artist: '',
+            loop: false,
           };
         }
       }
