@@ -13,11 +13,11 @@
   <div id="app" class="app-container">
     <!-- Top Control Header (2 Rows) -->
     <header class="control-header">
-      <!-- Row 1: Brand & Preset (wide area for 20+ chars) & Rename Button -->
+      <!-- Row 1: Brand (Left), Preset & Rename (Center), Reset Button (Right) -->
       <div class="header-row header-row-top">
         <div class="brand-badge">
           <span class="brand-glow">Rem-ixr</span>
-          <span class="version-tag">Ver.1.00</span>
+          <span class="version-tag">Ver.1.01</span>
         </div>
 
         <div class="header-group preset-group">
@@ -32,6 +32,16 @@
               <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
             </svg>
             <span class="btn-text">名前変更</span>
+          </button>
+        </div>
+
+        <div class="header-group reset-group">
+          <button id="reset-preset-btn" class="ctrl-btn reset-btn" title="表示中プリセットの曲を初期状態に戻す" aria-label="初期化">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <path d="M3 3v5h5"></path>
+            </svg>
+            <span class="btn-text">初期化</span>
           </button>
         </div>
       </div>
@@ -160,6 +170,27 @@
       </div>
       <div class="modal-actions">
         <button id="sample-modal-cancel-btn" class="modal-btn cancel-btn">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reset Preset Confirmation Modal Dialog -->
+  <div id="reset-modal" class="modal-backdrop" hidden style="display: none;">
+    <div class="modal-dialog">
+      <h2 class="modal-title" style="color: #ff3366;">⚠️ プリセットの初期化</h2>
+      <div class="modal-body">
+        <p style="font-size: 13.5px; color: var(--text-primary); margin-bottom: 12px; line-height: 1.5;">
+          表示中の <strong id="reset-modal-preset-name" style="color: var(--col-blue-primary);">Preset 1</strong> の全40パッド曲を初期状態（デフォルト音源）に戻しますか？
+        </p>
+        <p style="font-size: 12px; color: var(--text-dim); line-height: 1.4;">
+          ※各パッドに設定したカスタム音声の登録が初期音源にリセットされます。
+        </p>
+      </div>
+      <div class="modal-actions" style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px;">
+        <button id="reset-modal-cancel-btn" class="modal-btn cancel-btn">キャンセル</button>
+        <button id="reset-modal-confirm-btn" class="modal-btn danger-btn" style="background: rgba(255, 0, 85, 0.25); border: 1px solid var(--col-red-primary); color: #fff; box-shadow: 0 0 10px var(--col-red-glow); font-weight: 700; cursor: pointer; padding: 0 14px; height: 36px; border-radius: 4px;">
+          初期化する
+        </button>
       </div>
     </div>
   </div>

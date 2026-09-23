@@ -1176,6 +1176,7 @@
   const padGrid = document.getElementById('pad-grid');
   const presetSelect = document.getElementById('preset-select');
   const renameBtn = document.getElementById('rename-preset-btn');
+  const resetPresetBtn = document.getElementById('reset-preset-btn');
   const lockBtn = document.getElementById('lock-btn');
   const lockStatusText = document.getElementById('lock-status-text');
   const exportBtn = document.getElementById('export-backup-btn');
@@ -1187,6 +1188,11 @@
   const renameInput = document.getElementById('rename-input');
   const modalCancelBtn = document.getElementById('modal-cancel-btn');
   const modalSaveBtn = document.getElementById('modal-save-btn');
+
+  const resetModal = document.getElementById('reset-modal');
+  const resetModalPresetName = document.getElementById('reset-modal-preset-name');
+  const resetModalCancelBtn = document.getElementById('reset-modal-cancel-btn');
+  const resetModalConfirmBtn = document.getElementById('reset-modal-confirm-btn');
 
   const crossfaderSlider = document.getElementById('crossfader-slider');
   const redVolDisp = document.getElementById('red-vol-disp');
@@ -1717,6 +1723,55 @@
   renameInput.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') modalSaveBtn.click();
     if (e.key === 'Escape') modalCancelBtn.click();
+  });
+
+  // Reset Preset to Default Built-in Sounds
+  resetPresetBtn.addEventListener('click', () => {
+    if (!currentPresetData) return;
+    resetModalPresetName.textContent = currentPresetData.name || `Preset ${currentPresetId}`;
+    resetModal.hidden = false;
+    resetModal.style.display = 'flex';
+  });
+
+  resetModalCancelBtn.addEventListener('click', () => {
+    resetModal.hidden = true;
+    resetModal.style.display = 'none';
+  });
+
+  resetModalConfirmBtn.addEventListener('click', async () => {
+    resetModal.hidden = true;
+    resetModal.style.display = 'none';
+
+    if (!currentPresetData) return;
+
+    audioEngine.stopAll();
+    showLoading('プリセット初期化中', '標準音源を生成しています...', 30);
+
+    try {
+      if (!currentPresetData.pads) currentPresetData.pads = {};
+      for (let r = 0; r < ROWS; r++) {
+        for (let c = 0; c < COLS; c++) {
+          const key = `${c}_${r}`;
+          currentPresetData.pads[key] = {
+            sampleId: `builtin_p${currentPresetId}_${key}`,
+            name: getDefaultTrackName(r, c),
+            artist: '',
+          };
+        }
+      }
+      await savePreset(currentPresetData);
+      renderGrid();
+
+      updateLoading('音声データを読み込んでいます...', 75);
+      await loadPresetAudioBuffers(currentPresetData);
+
+      hideLoading();
+      showToast(`「${currentPresetData.name}」の全曲を初期状態に戻しました`);
+    } catch (err) {
+      hideLoading();
+      console.error('Reset preset failed', err);
+      alert('プリセットの初期化に失敗しました: ' + err.message);
+    }
   });
 
   exportBtn.addEventListener('click', async () => {
