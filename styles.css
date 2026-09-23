@@ -851,6 +851,20 @@ html, body {
   box-shadow: 0 0 12px var(--col-blue-glow);
 }
 
+.auto-timer-badge {
+  font-size: 11px;
+  font-weight: 600;
+  opacity: 0.9;
+  margin-left: 6px;
+  padding: 2px 7px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: inline-block;
+  vertical-align: middle;
+}
+
 /* Toast Notification */
 .toast {
   position: fixed;

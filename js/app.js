@@ -1229,6 +1229,41 @@
   const sampleModalChooseBtn = document.getElementById('sample-modal-choose-btn');
   const sampleModalCancelBtn = document.getElementById('sample-modal-cancel-btn');
 
+  let sampleModalAutoTimer = null;
+  let sampleModalCountdownInterval = null;
+  let sampleModalRemainingSec = 3;
+
+  function updateChooseBtnText(sec) {
+    if (sampleModalChooseBtn) {
+      sampleModalChooseBtn.innerHTML = `📁 音声ファイルを選択する <span class="auto-timer-badge">(${sec}秒後に自動選択)</span>`;
+    }
+  }
+
+  function clearSampleModalTimers() {
+    if (sampleModalAutoTimer) {
+      clearTimeout(sampleModalAutoTimer);
+      sampleModalAutoTimer = null;
+    }
+    if (sampleModalCountdownInterval) {
+      clearInterval(sampleModalCountdownInterval);
+      sampleModalCountdownInterval = null;
+    }
+    if (sampleModalChooseBtn) {
+      sampleModalChooseBtn.textContent = '📁 音声ファイルを選択する';
+    }
+  }
+
+  function executeChooseFile() {
+    clearSampleModalTimers();
+    closeSampleModal();
+    try {
+      sampleFileInput.value = '';
+      sampleFileInput.click();
+    } catch (e) {
+      console.warn('Native file input click failed', e);
+    }
+  }
+
   function openSampleModal(row, col) {
     if (!sampleModal) return;
     const rowLetter = ROW_NAMES[row];
@@ -1241,9 +1276,31 @@
     sampleModalCurrent.textContent = currentName;
     sampleModal.hidden = false;
     sampleModal.style.display = 'flex';
+
+    // Start 3-second auto-open countdown (auto triggers file selection if untouched)
+    clearSampleModalTimers();
+    sampleModalRemainingSec = 3;
+    updateChooseBtnText(sampleModalRemainingSec);
+
+    sampleModalCountdownInterval = setInterval(() => {
+      sampleModalRemainingSec--;
+      if (sampleModalRemainingSec > 0) {
+        updateChooseBtnText(sampleModalRemainingSec);
+      } else {
+        if (sampleModalCountdownInterval) {
+          clearInterval(sampleModalCountdownInterval);
+          sampleModalCountdownInterval = null;
+        }
+      }
+    }, 1000);
+
+    sampleModalAutoTimer = setTimeout(() => {
+      executeChooseFile();
+    }, 3000);
   }
 
   function closeSampleModal() {
+    clearSampleModalTimers();
     if (!sampleModal) return;
     sampleModal.hidden = true;
     sampleModal.style.display = 'none';
@@ -1252,10 +1309,19 @@
   sampleModalCancelBtn.addEventListener('click', closeSampleModal);
 
   sampleModalChooseBtn.addEventListener('click', () => {
-    closeSampleModal();
-    // Direct user tap event: 100% allowed on iOS Safari!
-    sampleFileInput.value = '';
-    sampleFileInput.click();
+    executeChooseFile();
+  });
+
+  sampleModal.addEventListener('click', (e) => {
+    if (e.target === sampleModal) {
+      closeSampleModal();
+    }
+  });
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sampleModal && !sampleModal.hidden && sampleModal.style.display !== 'none') {
+      closeSampleModal();
+    }
   });
 
   async function initApp() {
@@ -1628,19 +1694,7 @@
 
   function triggerFileAssign(row, col) {
     editingPadCoord = { row, col };
-
-    // Try direct native file picker click within user gesture (pointerup)
-    try {
-      sampleFileInput.value = '';
-      sampleFileInput.click();
-    } catch (e) {
-      console.warn('Native file input click failed', e);
-    }
-
-    // Also open modal dialog as reliable fallback for iOS Safari
-    setTimeout(() => {
-      openSampleModal(row, col);
-    }, 120);
+    openSampleModal(row, col);
   }
 
   sampleFileInput.addEventListener('change', async (e) => {
