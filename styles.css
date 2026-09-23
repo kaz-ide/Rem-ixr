@@ -17,24 +17,24 @@
   --text-secondary: #7f9bb8;
   --text-dim: #436280;
 
-  /* Column Neon Colors */
-  /* Col 1: Magenta / Red */
-  --col-red-primary: #ff0055;
-  --col-red-glow: rgba(255, 0, 85, 0.55);
-  --col-red-surface: rgba(255, 0, 85, 0.08);
-  --col-red-border: rgba(255, 0, 85, 0.35);
+  /* Column Neon Colors (DJ Electro Neon Palette) */
+  /* Col 1: Electric Magenta / Neon Pink */
+  --col-red-primary: #e01a89;
+  --col-red-glow: rgba(224, 26, 137, 0.55);
+  --col-red-surface: rgba(224, 26, 137, 0.22);
+  --col-red-border: rgba(224, 26, 137, 0.50);
 
-  /* Col 2-4: Cyan / Electric Blue */
-  --col-blue-primary: #00d2ff;
-  --col-blue-glow: rgba(0, 210, 255, 0.55);
-  --col-blue-surface: rgba(0, 210, 255, 0.08);
-  --col-blue-border: rgba(0, 210, 255, 0.35);
+  /* Col 2-4: Cyber Cyan / Indigo Blue */
+  --col-blue-primary: #00e5ff;
+  --col-blue-glow: rgba(0, 229, 255, 0.55);
+  --col-blue-surface: rgba(0, 229, 255, 0.20);
+  --col-blue-border: rgba(0, 229, 255, 0.45);
 
-  /* Col 5: Lime / Neon Green */
-  --col-green-primary: #00ff88;
-  --col-green-glow: rgba(0, 255, 136, 0.55);
-  --col-green-surface: rgba(0, 255, 136, 0.08);
-  --col-green-border: rgba(0, 255, 136, 0.35);
+  /* Col 5: Electric Lime / Neon Green */
+  --col-green-primary: #00e676;
+  --col-green-glow: rgba(0, 230, 118, 0.55);
+  --col-green-surface: rgba(0, 230, 118, 0.22);
+  --col-green-border: rgba(0, 230, 118, 0.50);
 
   /* Fonts */
   --font-display: 'Orbitron', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -72,8 +72,55 @@ html, body {
   touch-action: manipulation;
 }
 
-/* Main Container: Fits exactly inside screen viewport */
+/* Custom Background Layer & Overlay (Layer 0 & Layer 0.5) */
+.bg-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.bg-custom-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.has-custom-bg .bg-custom-image {
+  opacity: 1;
+}
+
+.bg-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(10, 15, 20, 0.45);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.has-custom-bg .bg-overlay {
+  opacity: 1;
+}
+
+/* Main Container: Fits exactly inside screen viewport (Layer 1) */
 .app-container {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -82,6 +129,11 @@ html, body {
   background: radial-gradient(circle at 50% 0%, #0d1e30 0%, #060c13 100%);
   padding: 6px;
   gap: 6px;
+  transition: background 0.3s ease;
+}
+
+.has-custom-bg .app-container {
+  background: transparent;
 }
 
 /* ==========================================================================
@@ -237,9 +289,28 @@ html, body {
   transform: translateY(1px);
 }
 
+.ctrl-btn:disabled {
+  opacity: 0.38 !important;
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  filter: grayscale(0.6);
+  box-shadow: none !important;
+}
+
 .ctrl-btn .icon {
   width: 15px;
   height: 15px;
+}
+
+.ctrl-btn .btn-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.bg-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 /* Lock Button States */
@@ -433,8 +504,8 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
-  color: var(--text-primary);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+  color: #ffffff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.85);
 }
 
 .pad-artist {
@@ -447,9 +518,9 @@ html, body {
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
-  color: var(--text-secondary);
-  opacity: 0.85;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+  color: var(--text-primary);
+  opacity: 0.9;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.8);
 }
 
 /* Decorative Audio Waveform Bars */
@@ -495,20 +566,24 @@ html, body {
   width: 100%;
 }
 
-/* Column Themes */
-/* 1. Red Column (Col 0) */
+/* Column Themes - Clear Translucent Pads without blur filter */
+/* 1. Electric Magenta Column (Col 0) */
 .pad-cell.col-red {
   border-color: var(--col-red-border);
-  background: linear-gradient(180deg, var(--col-red-surface) 0%, rgba(14, 27, 43, 0.9) 100%);
+  background: var(--col-red-surface);
   color: var(--col-red-primary);
+}
+
+.pad-cell.col-red:hover {
+  background: rgba(224, 26, 137, 0.32);
 }
 
 .pad-cell.col-red .pad-coord { color: var(--col-red-primary); }
 
 .pad-cell.col-red.is-playing {
-  background: rgba(255, 0, 85, 0.28);
+  background: rgba(224, 26, 137, 0.45);
   border-color: var(--col-red-primary);
-  box-shadow: 0 0 15px var(--col-red-glow), inset 0 0 12px var(--col-red-glow);
+  box-shadow: 0 0 16px var(--col-red-glow), inset 0 0 12px var(--col-red-glow);
   animation: redPulse 1.2s infinite alternate;
 }
 
@@ -517,34 +592,42 @@ html, body {
   animation: waveActive 0.5s infinite alternate;
 }
 
-/* 2. Blue Column (Col 1, 2, 3) */
+/* 2. Cyber Cyan Column (Col 1, 2, 3) */
 .pad-cell.col-blue {
   border-color: var(--col-blue-border);
-  background: linear-gradient(180deg, var(--col-blue-surface) 0%, rgba(14, 27, 43, 0.9) 100%);
+  background: var(--col-blue-surface);
   color: var(--col-blue-primary);
+}
+
+.pad-cell.col-blue:hover {
+  background: rgba(0, 229, 255, 0.30);
 }
 
 .pad-cell.col-blue .pad-coord { color: var(--col-blue-primary); }
 
 .pad-cell.col-blue.is-playing {
-  background: rgba(0, 210, 255, 0.32);
+  background: rgba(0, 229, 255, 0.42);
   border-color: var(--col-blue-primary);
-  box-shadow: 0 0 15px var(--col-blue-glow), inset 0 0 12px var(--col-blue-glow);
+  box-shadow: 0 0 16px var(--col-blue-glow), inset 0 0 12px var(--col-blue-glow);
 }
 
-/* 3. Green Column (Col 4) */
+/* 3. Electric Lime Column (Col 4) */
 .pad-cell.col-green {
   border-color: var(--col-green-border);
-  background: linear-gradient(180deg, var(--col-green-surface) 0%, rgba(14, 27, 43, 0.9) 100%);
+  background: var(--col-green-surface);
   color: var(--col-green-primary);
+}
+
+.pad-cell.col-green:hover {
+  background: rgba(0, 230, 118, 0.32);
 }
 
 .pad-cell.col-green .pad-coord { color: var(--col-green-primary); }
 
 .pad-cell.col-green.is-playing {
-  background: rgba(0, 255, 136, 0.28);
+  background: rgba(0, 230, 118, 0.45);
   border-color: var(--col-green-primary);
-  box-shadow: 0 0 15px var(--col-green-glow), inset 0 0 12px var(--col-green-glow);
+  box-shadow: 0 0 16px var(--col-green-glow), inset 0 0 12px var(--col-green-glow);
   animation: greenPulse 1.2s infinite alternate;
 }
 
@@ -671,19 +754,19 @@ html, body {
 
 .fader-track-left {
   flex: 1;
-  background: linear-gradient(90deg, var(--col-red-primary) 0%, rgba(255, 180, 0, 0.75) 100%);
+  background: linear-gradient(90deg, var(--col-red-primary) 0%, var(--col-blue-primary) 100%);
 }
 
 .fader-center-notch {
   width: 6px;
   background: #ffffff;
-  box-shadow: 0 0 10px #ffffff, 0 0 16px rgba(0, 210, 255, 0.8);
+  box-shadow: 0 0 10px #ffffff, 0 0 16px var(--col-blue-glow);
   z-index: 2;
 }
 
 .fader-track-right {
   flex: 1;
-  background: linear-gradient(90deg, rgba(255, 180, 0, 0.75) 0%, var(--col-green-primary) 100%);
+  background: linear-gradient(90deg, var(--col-blue-primary) 0%, var(--col-green-primary) 100%);
 }
 
 /* Range Input Layer */
@@ -706,26 +789,26 @@ html, body {
   appearance: none;
   width: 36px;
   height: 44px;
-  background: linear-gradient(180deg, #324c68 0%, #152538 100%);
-  border: 2px solid #00d2ff;
+  background: linear-gradient(180deg, #1d354d 0%, #0d1a29 100%);
+  border: 2px solid var(--col-blue-primary);
   border-radius: 6px;
-  box-shadow: 0 0 14px rgba(0, 210, 255, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  box-shadow: 0 0 14px var(--col-blue-glow), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   cursor: grab;
   position: relative;
 }
 
 .crossfader-input:active::-webkit-slider-thumb {
   cursor: grabbing;
-  box-shadow: 0 0 20px rgba(0, 210, 255, 1), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  box-shadow: 0 0 20px var(--col-blue-primary), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 
 .crossfader-input::-moz-range-thumb {
   width: 36px;
   height: 44px;
-  background: linear-gradient(180deg, #324c68 0%, #152538 100%);
-  border: 2px solid #00d2ff;
+  background: linear-gradient(180deg, #1d354d 0%, #0d1a29 100%);
+  border: 2px solid var(--col-blue-primary);
   border-radius: 6px;
-  box-shadow: 0 0 14px rgba(0, 210, 255, 0.7);
+  box-shadow: 0 0 14px var(--col-blue-glow), inset 0 1px 0 rgba(255, 255, 255, 0.5);
   cursor: grab;
 }
 
@@ -1413,10 +1496,23 @@ html, body {
     font-size: 12px;
   }
 
-  .ctrl-btn {
-    padding: 0 6px;
-    font-size: 11px;
+  .header-row-bottom {
+    gap: 4px;
+  }
+
+  .bg-group,
+  .backup-group {
     gap: 3px;
+  }
+
+  .ctrl-btn {
+    padding: 0 5px;
+    font-size: 10.5px;
+    gap: 2px;
+  }
+
+  .ctrl-btn .btn-icon {
+    font-size: 11px;
   }
 
   .ctrl-btn .btn-text {
@@ -1425,7 +1521,7 @@ html, body {
 
   .lock-btn {
     min-width: auto;
-    padding: 0 8px;
+    padding: 0 6px;
   }
 
   .lock-label {

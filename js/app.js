@@ -130,6 +130,17 @@
     });
   }
 
+  async function removeSetting(key) {
+    const db = await openDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('settings', 'readwrite');
+      const store = tx.objectStore('settings');
+      const req = store.delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
   function arrayBufferToBase64(buffer) {
     let binary = '';
     const bytes = new Uint8Array(buffer);
@@ -1176,6 +1187,15 @@
   const sampleFileInput = document.getElementById('sample-file-input');
   const backupFileInput = document.getElementById('backup-file-input');
 
+  const bgBackdrop = document.getElementById('bg-backdrop');
+  const bgCustomImage = document.getElementById('bg-custom-image');
+  const bgSetBtn = document.getElementById('bg-set-btn');
+  const bgRemoveBtn = document.getElementById('bg-remove-btn');
+  const bgFileInput = document.getElementById('bg-file-input');
+  const bgModal = document.getElementById('bg-modal');
+  const bgModalConfirmBtn = document.getElementById('bg-modal-confirm-btn');
+  const bgModalCancelBtn = document.getElementById('bg-modal-cancel-btn');
+
   const renameModal = document.getElementById('rename-modal');
   const renameInput = document.getElementById('rename-input');
   const modalCancelBtn = document.getElementById('modal-cancel-btn');
@@ -1318,9 +1338,131 @@
     }
   });
 
+  // Background Image Handling
+  function applyCustomBackground(dataUrl) {
+    if (!bgCustomImage) return;
+    if (dataUrl) {
+      bgCustomImage.style.backgroundImage = `url("${dataUrl}")`;
+      document.body.classList.add('has-custom-bg');
+    } else {
+      bgCustomImage.style.backgroundImage = '';
+      document.body.classList.remove('has-custom-bg');
+    }
+  }
+
+  async function loadCustomBackground() {
+    try {
+      const savedBg = await getSetting('custom_background_image', null);
+      if (savedBg) {
+        applyCustomBackground(savedBg);
+      }
+    } catch (e) {
+      console.warn('Failed to load custom background from DB', e);
+    }
+  }
+
+  async function saveCustomBackground(file) {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      alert('画像ファイル（PNG, JPEG, WebP等）を選択してください。');
+      return;
+    }
+
+    showLoading('背景画像を設定中...', '画像を読み込んでいます');
+    try {
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const dataUrl = e.target.result;
+          applyCustomBackground(dataUrl);
+          await setSetting('custom_background_image', dataUrl);
+          hideLoading();
+          showToast('🖼️ 背景画像を設定しました');
+        } catch (innerErr) {
+          hideLoading();
+          console.error('Error saving background image to DB', innerErr);
+          alert('背景画像の保存に失敗しました。');
+        }
+      };
+      reader.onerror = () => {
+        hideLoading();
+        alert('画像の読み込みに失敗しました。');
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      hideLoading();
+      console.error('Error reading background image', err);
+      alert('背景画像の読み込みに失敗しました。');
+    }
+  }
+
+  async function clearCustomBackground() {
+    applyCustomBackground(null);
+    await removeSetting('custom_background_image');
+    showToast('🗑️ 背景画像を削除しました');
+  }
+
+  function openBgModal() {
+    if (isLocked) return;
+    if (!bgModal) return;
+    bgModal.hidden = false;
+    bgModal.style.display = 'flex';
+  }
+
+  function closeBgModal() {
+    if (!bgModal) return;
+    bgModal.hidden = true;
+    bgModal.style.display = 'none';
+  }
+
+  if (bgSetBtn) {
+    bgSetBtn.addEventListener('click', () => {
+      openBgModal();
+    });
+  }
+
+  if (bgRemoveBtn) {
+    bgRemoveBtn.addEventListener('click', async () => {
+      if (isLocked) return;
+      await clearCustomBackground();
+    });
+  }
+
+  if (bgModalCancelBtn) {
+    bgModalCancelBtn.addEventListener('click', closeBgModal);
+  }
+
+  if (bgModalConfirmBtn) {
+    bgModalConfirmBtn.addEventListener('click', () => {
+      closeBgModal();
+      if (bgFileInput) bgFileInput.click();
+    });
+  }
+
+  if (bgModal) {
+    bgModal.addEventListener('click', (e) => {
+      if (e.target === bgModal) closeBgModal();
+    });
+  }
+
+  if (bgFileInput) {
+    bgFileInput.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        await saveCustomBackground(file);
+      }
+      bgFileInput.value = '';
+    });
+  }
+
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && sampleModal && !sampleModal.hidden && sampleModal.style.display !== 'none') {
-      closeSampleModal();
+    if (e.key === 'Escape') {
+      if (sampleModal && !sampleModal.hidden && sampleModal.style.display !== 'none') {
+        closeSampleModal();
+      }
+      if (bgModal && !bgModal.hidden && bgModal.style.display !== 'none') {
+        closeBgModal();
+      }
     }
   });
 
@@ -1337,6 +1479,7 @@
       await setSetting('faderVersion', 2);
     }
 
+    await loadCustomBackground();
     updateLockUI();
 
     audioEngine.onFaderChange = (pos) => {
@@ -1788,10 +1931,14 @@
       lockBtn.classList.remove('unlocked');
       lockBtn.classList.add('locked');
       lockStatusText.textContent = 'ロック中';
+      if (bgSetBtn) bgSetBtn.disabled = true;
+      if (bgRemoveBtn) bgRemoveBtn.disabled = true;
     } else {
       lockBtn.classList.remove('locked');
       lockBtn.classList.add('unlocked');
       lockStatusText.textContent = '編集可能';
+      if (bgSetBtn) bgSetBtn.disabled = false;
+      if (bgRemoveBtn) bgRemoveBtn.disabled = false;
     }
   }
 
