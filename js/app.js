@@ -1513,14 +1513,6 @@
         else if (c === 4) modeTag = 'TRACK R';
 
         pad.innerHTML = `
-          <div class="pad-meta">
-            <span class="pad-coord">${rowLetter}${c + 1}</span>
-            <span class="pad-mode-tag">${modeTag}</span>
-          </div>
-          <button type="button" class="pad-rpt-btn ${isLoop ? 'active' : ''}" data-pad-key="${key}" title="リピート (ON/OFF)" aria-label="リピート切替">
-            <span class="rpt-label">rpt</span>
-            <span class="rpt-check">${isLoop ? '☑' : '☐'}</span>
-          </button>
           <div class="pad-titles">
             <div class="pad-name" title="${trackName}">${escapeHtml(trackName)}</div>
             ${artistName ? `<div class="pad-artist" title="${artistName}">${escapeHtml(artistName)}</div>` : ''}
