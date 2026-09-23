@@ -335,7 +335,6 @@ html, body {
   font-weight: 700;
   letter-spacing: 0.5px;
   opacity: 0.7;
-  padding-right: 38px; /* Leave space for top-right rpt toggle */
 }
 
 .pad-coord {
@@ -348,8 +347,9 @@ html, body {
   text-transform: uppercase;
 }
 
-/* Pad Repeat (rpt) Toggle Button */
+/* Pad Repeat (rpt) Toggle Button - Temporarily hidden per user request, code preserved for future revival */
 .pad-rpt-btn {
+  display: none !important; /* Temporarily disabled, easily re-enabled by removing this rule */
   position: absolute;
   top: 3px;
   right: 4px;
@@ -1446,27 +1446,37 @@ html, body {
   }
 
   .pad-cell {
-    padding: 3px 4px;
+    padding: 2px 4px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: center !important;
+    align-items: center !important;
   }
 
+  /* Hide coordinates (A1~H5 / R1~R5) and mode tags (TRACK L/R, SHOT) on smartphones */
   .pad-meta {
-    font-size: 7.5px;
-    padding-right: 32px;
+    display: none !important;
   }
 
-  .pad-rpt-btn {
-    top: 2px;
-    right: 3px;
-    font-size: 7.5px;
-    padding: 1px 3px;
+  .pad-titles {
+    width: 100% !important;
+    margin: auto 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
   }
 
   .pad-name {
-    font-size: 13.5px; /* 30% up from 10.5px */
+    font-size: 14px !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    text-align: center !important;
   }
 
   .pad-artist {
-    font-size: 10.5px;
+    font-size: 10.5px !important;
+    text-align: center !important;
   }
 
   .fader-footer {
@@ -1476,6 +1486,13 @@ html, body {
 
   .fader-end-label .title {
     font-size: 9px;
+  }
+}
+
+/* Extra safety for small screens and mobile devices */
+@media (max-width: 768px) {
+  .pad-meta {
+    display: none !important;
   }
 }
 
